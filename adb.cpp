@@ -1371,7 +1371,7 @@ HostRequestResult handle_host_request(std::string_view service, TransportType ty
         status.set_trace_level(get_trace_setting());
         status.set_mdns_enabled(mdns::is_enabled());
         status.set_keystore_path(adb_auth_get_userkey_path());
-        status.set_known_hosts_path(get_user_known_hosts_path());
+        status.set_known_hosts_path(known_wifi_hosts_file.KeyStorePath());
 
         std::string server_status_string;
         status.SerializeToString(&server_status_string);
@@ -1522,7 +1522,10 @@ HostRequestResult handle_host_request(std::string_view service, TransportType ty
         if (!ParseUint(&port, service)) {
           LOG(ERROR) << "received invalid port for emulator: " << service;
         } else {
-            connect_emulator(port);
+            // We are running on the fdevent thread. Connect is a long operation which
+            // can potentially block 10s until connection is established. We must run
+            // it on another thread.
+            std::thread([=] { connect_emulator(port); }).detach();
         }
 
         /* we don't even need to send a reply */

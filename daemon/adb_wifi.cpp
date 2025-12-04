@@ -16,11 +16,15 @@
 
 #include "adbd_wifi.h"
 
+#include <adbd_auth.h>
+
+#if defined(__ANDROID__)
+
 #include <unistd.h>
 #include <optional>
 
-#include <adbd_auth.h>
 #include <android-base/properties.h>
+#include <com_android_adbdauth_flags.h>
 
 #include "adb.h"
 #include "adbd_wifi.h"
@@ -146,11 +150,9 @@ TlsServer* sTlsServer = nullptr;
 
 const char kWifiEnabledProp[] = "persist.adb.tls_server.enable";
 
-// TODO(b/31559095): need bionic host so that we can use 'prop_info' returned
-// from WaitForProperty
-#if defined(__ANDROID__)
 // Pre API 37 control ADB Wifi TLSServer by toggling kWifiEnabledProp property
 static void start_wifi_enabled_observer() {
+    LOG(INFO) << "wifi_init: Starting property observer thread";
     std::thread([]() {
         bool wifi_enabled = false;
         while (true) {
@@ -169,20 +171,29 @@ static void start_wifi_enabled_observer() {
         }
     }).detach();
 }
-#endif  //__ANDROID__
-
 }  // namespace
 
 static void adbd_send_tls_server_port(uint16_t port) {
+    if (com_android_adbdauth_flags_use_tls_lifecycle()) {
+        if (__builtin_available(android 37, *)) {
+            LOG(INFO) << "Sending TLS port to framework via adbdauth'" << port << "'";
+            adbd_auth_send_tls_server_port(auth_ctx, port);
+            return;
+        }
+    }
+
+    // Fallback to legacy system property
     LOG(INFO) << "Sending TLS port to framework via system property '" << port << "'";
     SetProperty("service.adb.tls.port", std::to_string(port));
 }
 
 void enable_wifi_debugging() {
-    start_mdnsd();
-
     if (sTlsServer != nullptr) {
-        delete sTlsServer;
+        // The TLS server is already up. This is a noop. But the Framework may still expect to get
+        // sent the tls port.
+        LOG(INFO) << "enable_wifi_debugging noop, still sending port=" << sTlsServer->port();
+        adbd_send_tls_server_port(sTlsServer->port());
+        return;
     }
     sTlsServer = new TlsServer(0);
     if (!sTlsServer->Start()) {
@@ -193,7 +204,7 @@ void enable_wifi_debugging() {
     }
 
     // Start mdns connect service for discovery
-    register_adb_secure_connect_service(sTlsServer->port());
+    register_adb_tls_service(sTlsServer->port());
     LOG(INFO) << "adb wifi started on port " << sTlsServer->port();
     adbd_send_tls_server_port(sTlsServer->port());
 }
@@ -203,9 +214,9 @@ void disable_wifi_debugging() {
         delete sTlsServer;
         sTlsServer = nullptr;
     }
-    if (is_adb_secure_connect_service_registered()) {
-        unregister_adb_secure_connect_service();
-    }
+
+    unregister_adb_tls_service();
+
     kick_all_tcp_tls_transports();
     LOG(INFO) << "adb wifi stopped";
     adbd_send_tls_server_port(0);
@@ -213,9 +224,15 @@ void disable_wifi_debugging() {
 
 void adbd_wifi_init(AdbdAuthContext* ctx) {
     auth_ctx = ctx;
-#if defined(__ANDROID__)
+    if (com_android_adbdauth_flags_use_tls_lifecycle()) {
+        if (__builtin_available(android 37, *)) {
+            LOG(INFO) << "wifi_init: Expecting lifecycle message over adbdauth";
+            return;
+        }
+    }
+
+    // Fallback to legacy property observer to detect when start/stop adb wifi is requested
     start_wifi_enabled_observer();
-#endif  //__ANDROID__
 }
 
 void adbd_wifi_secure_connect(atransport* t) {
@@ -226,3 +243,9 @@ void adbd_wifi_secure_connect(atransport* t) {
     t->auth_id = adbd_auth_tls_device_connected(auth_ctx, kAdbTransportTypeWifi, t->auth_key.data(),
                                                 t->auth_key.size());
 }
+#else
+void enable_wifi_debugging() {}
+void disable_wifi_debugging() {}
+void adbd_wifi_init(AdbdAuthContext*) {}
+void adbd_wifi_secure_connect(atransport*) {}
+#endif  //__ANDROID__

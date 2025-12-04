@@ -90,10 +90,11 @@ cc_defaults {
             ],
 
             host_ldlibs: [
-                "-lws2_32",
+                "-ldbghelp",
                 "-lgdi32",
-                "-luserenv",
                 "-liphlpapi",
+                "-luserenv",
+                "-lws2_32",
             ],
         },
     },
@@ -261,7 +262,7 @@ cc_library_host_static {
     defaults: ["adb_defaults"],
 
     srcs: libadb_srcs + [
-        "client/openscreen/mdns_service_info.cpp",
+        "client/openscreen/mdns_service.cpp",
         "client/openscreen/platform/logging.cpp",
         "client/openscreen/platform/task_runner.cpp",
         "client/openscreen/platform/udp_socket.cpp",
@@ -362,6 +363,7 @@ cc_test_host {
     name: "adb_test",
     defaults: ["adb_defaults"],
     srcs: libadb_test_srcs + [
+        "client/adb_wifi_test.cpp",
         "client/commandline_test.cpp",
         "client/discovered_services_test.cpp",
         "client/mdns_utils_test.cpp",
@@ -608,6 +610,9 @@ cc_library_static {
             shared_libs: [
                 "adbd_flags_c_lib",
             ],
+            static_libs: [
+                 "android_adbdauth_flags_cc_lib",
+            ],
         },
         recovery: {
             exclude_shared_libs: [
@@ -700,6 +705,7 @@ cc_library {
             static_libs: [
                 "android_trade_in_mode_flags_cc_lib",
                 "adbroot_aidl_interface-ndk",
+                "android_adbdauth_flags_cc_lib",
             ],
         },
         recovery: {
@@ -840,6 +846,7 @@ cc_binary {
             static_libs: [
                 "android_trade_in_mode_flags_cc_lib",
                 "adbroot_aidl_interface-ndk",
+                "android_adbdauth_flags_cc_lib",
             ],
             shared_libs: [
                 "adbd_flags_c_lib",
@@ -866,6 +873,13 @@ cc_binary {
     defaults: [
         "adbd_binary_defaults",
     ],
+    target: {
+        android: {
+            static_libs: [
+                "android_adbdauth_flags_cc_lib",
+            ],
+        },
+    },
     recovery: true,
     stem: "adbd",
 }
@@ -997,6 +1011,7 @@ cc_test {
             ],
             static_libs: [
                 "android_trade_in_mode_flags_cc_lib",
+                "android_adbdauth_flags_cc_lib",
             ],
         },
     },

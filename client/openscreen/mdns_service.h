@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,7 @@
  * limitations under the License.
  */
 
-#ifndef _DAEMON_MDNS_H_
-#define _DAEMON_MDNS_H_
+#pragma once
 
-// mDNS advertises the TCP port ADBd is currently listening on for non-encrypted traffic.
-void register_adb_tcp_service(int tcp_port);
-
-// mDNS advertises the TLS port ADBd is currently listening on for encrypted traffic.
-void register_adb_tls_service(int tls_port);
-void unregister_adb_tls_service();
-
-#endif  // _DAEMON_MDNS_H_
+void StartOpenScreenDiscovery();
+bool IsOpenScreenStarted();

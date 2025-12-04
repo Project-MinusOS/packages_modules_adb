@@ -810,7 +810,7 @@ static int adb_abb(int argc, const char** argv) {
     constexpr bool empty_command = false;
 
     std::vector<const char*> args(argv + optind, argv + argc);
-    std::string service_string = "abb:" + android::base::Join(args, ABB_ARG_DELIMETER);
+    std::string service_string = "abb:" + android::base::Join(args, ABB_ARG_DELIMITER);
 
     D("abb -e 0x%x [%*.s]\n", escape_char, static_cast<int>(service_string.size()),
       service_string.data());
@@ -2185,11 +2185,11 @@ int adb_commandline(int argc, const char** argv) {
             }
         }
     } else if (!strcmp(argv[0], "inc-server")) {
-        if (argc < 4) {
+        if (argc < 3) {
 #ifdef _WIN32
-            error_exit("usage: adb inc-server CONNECTION_HANDLE OUTPUT_HANDLE FILE1 FILE2 ...");
+            error_exit("usage: adb inc-server CONNECTION_HANDLE OUTPUT_HANDLE [FILE1 FILE2 ...]");
 #else
-            error_exit("usage: adb inc-server CONNECTION_FD OUTPUT_FD FILE1 FILE2 ...");
+            error_exit("usage: adb inc-server CONNECTION_FD OUTPUT_FD [FILE1 FILE2 ...]");
 #endif
         }
         int connection_fd = atoi(argv[1]);
